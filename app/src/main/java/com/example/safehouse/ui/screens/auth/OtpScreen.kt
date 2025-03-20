@@ -31,23 +31,10 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
     var secondsLeft by remember { mutableStateOf(60) }
     val coroutineScope = rememberCoroutineScope()
     
-    // Request OTP when screen is first shown
+    // Only request OTP if we're not coming from signup
+    // The OTP should have been sent during signup already
     LaunchedEffect(Unit) {
-        try {
-            isLoading = true
-            val phoneRequest = PhoneRequest(phone = phoneNumber)
-            val response = ApiClient.authService.requestVerification(phoneRequest)
-            
-            if (!response.isSuccessful) {
-                errorMessage = "Failed to send verification code. Please try again."
-            }
-        } catch (e: Exception) {
-            errorMessage = "Network error: ${e.localizedMessage}"
-        } finally {
-            isLoading = false
-        }
-        
-        // Start the countdown timer
+        // Just start the countdown timer for resend
         while (secondsLeft > 0) {
             delay(1000)
             secondsLeft--
@@ -148,14 +135,14 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                         val verifyRequest = VerifyPhoneRequest(phone = phoneNumber, otp = otp)
                         val response = ApiClient.authService.verifyPhone(verifyRequest)
                         
-                        if (response.isSuccessful && response.body()?.verified == true) {
-                            // Verification successful, navigate to home or login
+                        if (response.isSuccessful) {
+                            // Navigate to home screen after successful verification
                             navController.navigate(Screen.Home.route) {
+                                // Clear the back stack so user can't go back to auth screens
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }
                         } else {
-                            // Handle error
-                            errorMessage = response.body()?.message ?: "Verification failed. Please try again."
+                            errorMessage = "Verification failed: ${response.errorBody()?.string() ?: "Invalid code"}"
                         }
                     } catch (e: Exception) {
                         errorMessage = "Network error: ${e.localizedMessage}"
@@ -197,6 +184,8 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                         coroutineScope.launch {
                             try {
                                 isLoading = true
+                                errorMessage = null
+                                
                                 val phoneRequest = PhoneRequest(phone = phoneNumber)
                                 val response = ApiClient.authService.requestVerification(phoneRequest)
                                 
@@ -205,7 +194,7 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                                     secondsLeft = 60
                                     resendEnabled = false
                                 } else {
-                                    errorMessage = "Failed to resend code. Please try again."
+                                    errorMessage = "Failed to resend verification code. Please try again."
                                 }
                             } catch (e: Exception) {
                                 errorMessage = "Network error: ${e.localizedMessage}"
@@ -214,10 +203,16 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                             }
                         }
                     },
-                    enabled = !isLoading
+                    enabled = !isLoading && resendEnabled
                 ) {
-                    Text("Resend")
+                    Text("Resend Code")
                 }
+            } else if (secondsLeft > 0) {
+                Text(
+                    text = "Resend code in ${secondsLeft}s",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
             }
         }
     }

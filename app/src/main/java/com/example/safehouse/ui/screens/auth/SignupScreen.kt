@@ -240,7 +240,7 @@ fun SignupScreen(navController: NavController) {
                                 val signupRequest = SignupRequest(
                                     phone = formattedPhone,
                                     password = password,
-                                    name = fullName,
+                                    fullName = fullName,
                                     email = email
                                 )
                                 
@@ -251,7 +251,7 @@ fun SignupScreen(navController: NavController) {
                                     val authResponse = response.body()!!
                                     // Here you would typically save the token to preferences or a secure storage
                                     
-                                    // Now request verification code
+                                    // Explicitly request OTP after successful signup
                                     val phoneRequest = PhoneRequest(phone = formattedPhone)
                                     val otpResponse = ApiClient.authService.requestVerification(phoneRequest)
                                     

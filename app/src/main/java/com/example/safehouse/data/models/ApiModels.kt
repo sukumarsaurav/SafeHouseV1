@@ -8,7 +8,7 @@ data class VerifyPhoneRequest(val phone: String, val otp: String) // Note: using
 data class SignupRequest(
     val phone: String,
     val password: String,
-    val name: String,
+    val fullName: String,
     val email: String
 )
 
