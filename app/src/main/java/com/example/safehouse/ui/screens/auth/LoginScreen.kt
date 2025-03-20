@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.safehouse.R
 import com.example.safehouse.navigation.Screen
+import com.example.safehouse.data.network.ApiClient
+import com.example.safehouse.data.models.LoginRequest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +33,7 @@ fun LoginScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val focusManager = LocalFocusManager.current
+    val coroutineScope = rememberCoroutineScope()
     
     Column(
         modifier = Modifier
@@ -63,9 +67,14 @@ fun LoginScreen(navController: NavController) {
         
         OutlinedTextField(
             value = phoneNumber,
-            onValueChange = { phoneNumber = it },
+            onValueChange = { 
+                // Only allow digits in the phone field
+                if (it.all { char -> char.isDigit() } || it.isEmpty()) {
+                    phoneNumber = it
+                }
+            },
             label = { Text("Phone Number") },
-            placeholder = { Text("+1234567890") },
+            placeholder = { Text("9991234567") }, // Changed to show format without country code
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
@@ -108,12 +117,36 @@ fun LoginScreen(navController: NavController) {
         
         Button(
             onClick = {
+                // Format phone number with +91 prefix for India
+                val formattedPhone = "+91${phoneNumber.trim()}"
+                
                 // Handle login logic
-                isLoading = true
-                // Simulate API call
-                // In real app, call the login API endpoint
-                navController.navigate(Screen.Home.route) {
-                    popUpTo(Screen.Login.route) { inclusive = true }
+                coroutineScope.launch {
+                    try {
+                        isLoading = true
+                        errorMessage = null
+                        
+                        val loginRequest = LoginRequest(phone = formattedPhone, password = password)
+                        val response = ApiClient.authService.login(loginRequest)
+                        
+                        if (response.isSuccessful && response.body() != null) {
+                            // Store token for future API calls
+                            val authResponse = response.body()!!
+                            // Here you would typically save the token to preferences or a secure storage
+                            
+                            // Navigate to home screen
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
+                        } else {
+                            // Handle error
+                            errorMessage = "Login failed: ${response.errorBody()?.string() ?: "Invalid credentials"}"
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = "Network error: ${e.localizedMessage}"
+                    } finally {
+                        isLoading = false
+                    }
                 }
             },
             modifier = Modifier
@@ -133,9 +166,12 @@ fun LoginScreen(navController: NavController) {
         
         TextButton(
             onClick = {
-                navController.navigate(Screen.OtpVerification.route.replace("{phoneNumber}", phoneNumber))
+                // Format phone number with +91 prefix for India
+                val formattedPhone = "+91${phoneNumber.trim()}"
+                navController.navigate(Screen.OtpVerification.route.replace("{phoneNumber}", formattedPhone))
             },
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 8.dp),
+            enabled = phoneNumber.length == 10 && phoneNumber.all { it.isDigit() }
         ) {
             Text("Login with OTP")
         }

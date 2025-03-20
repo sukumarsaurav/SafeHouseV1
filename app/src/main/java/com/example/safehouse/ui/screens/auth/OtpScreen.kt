@@ -70,7 +70,7 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
         )
         
         Text(
-            text = "We've sent a 6-digit code to\n$phoneNumber",
+            text = "We've sent a 6-digit code to\n${formatPhoneNumberForDisplay(phoneNumber)}",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 32.dp)
@@ -220,5 +220,15 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                 }
             }
         }
+    }
+}
+
+private fun formatPhoneNumberForDisplay(phoneNumber: String): String {
+    // If the phone number starts with +91, format it nicely
+    return if (phoneNumber.startsWith("+91")) {
+        val nationalNumber = phoneNumber.substring(3) // Remove +91
+        "+91 ${nationalNumber.take(5)} ${nationalNumber.takeLast(5)}"
+    } else {
+        phoneNumber
     }
 } 
