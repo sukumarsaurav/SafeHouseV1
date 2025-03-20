@@ -61,9 +61,9 @@ fun SignupScreen(navController: NavController) {
             return false
         }
         
-        // Validate phone
-        if (phone.isBlank() || phone.length < 10) {
-            errorMessage = "Please enter a valid phone number"
+        // Validate phone - check for 10 digits for Indian numbers
+        if (phone.isBlank() || phone.length != 10 || !phone.all { it.isDigit() }) {
+            errorMessage = "Please enter a valid 10-digit phone number"
             return false
         }
         
@@ -142,7 +142,12 @@ fun SignupScreen(navController: NavController) {
             // Phone
             OutlinedTextField(
                 value = phone,
-                onValueChange = { phone = it },
+                onValueChange = { 
+                    // Only allow digits in the phone field
+                    if (it.all { char -> char.isDigit() } || it.isEmpty()) {
+                        phone = it
+                    }
+                },
                 label = { Text("Phone Number") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
@@ -153,7 +158,7 @@ fun SignupScreen(navController: NavController) {
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
                 singleLine = true,
-                placeholder = { Text("+919991234567") }
+                placeholder = { Text("9991234567") }
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -229,8 +234,8 @@ fun SignupScreen(navController: NavController) {
                                 isLoading = true
                                 errorMessage = null
                                 
-                                // Format phone number correctly (remove any spaces or dashes)
-                                val formattedPhone = phone.replace("\\s|-".toRegex(), "")
+                                // Format phone number correctly (add "+91" prefix)
+                                val formattedPhone = "+91${phone.trim()}"
                                 
                                 val signupRequest = SignupRequest(
                                     phone = formattedPhone,
