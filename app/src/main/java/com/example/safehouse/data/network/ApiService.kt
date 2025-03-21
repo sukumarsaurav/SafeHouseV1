@@ -33,7 +33,9 @@ interface UserApiService {
     suspend fun updateUserProfile(@Body profileRequest: UpdateProfileRequest): Response<UserProfileResponse>
     
     @PUT("api/user/password")
-    suspend fun changePassword(@Body passwordRequest: ChangePasswordRequest): Response<MessageResponse>
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
+    ): Response<MessageResponse>
     
     @PUT("api/user/preferences")
     suspend fun updatePreferences(@Body preferencesRequest: PreferencesRequest): Response<PreferencesResponse>

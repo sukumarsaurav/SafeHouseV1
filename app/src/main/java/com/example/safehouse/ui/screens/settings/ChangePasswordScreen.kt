@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,8 +22,14 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.safehouse.data.local.DataStoreHelper
+import com.example.safehouse.data.models.ChangePasswordRequest
+import com.example.safehouse.data.models.MessageResponse
+import com.example.safehouse.data.network.ApiClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +46,8 @@ fun ChangePasswordScreen(navController: NavController) {
     
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val dataStoreHelper = remember { DataStoreHelper(context) }
     
     Scaffold(
         topBar = {
@@ -172,30 +181,58 @@ fun ChangePasswordScreen(navController: NavController) {
                 onClick = {
                     // Validate inputs
                     when {
-                        currentPassword.isBlank() -> errorMessage = "Current password is required"
-                        newPassword.isBlank() -> errorMessage = "New password is required"
-                        newPassword.length < 6 -> errorMessage = "Password must be at least 6 characters"
-                        newPassword != confirmPassword -> errorMessage = "Passwords do not match"
+                        currentPassword.isBlank() -> {
+                            errorMessage = "Please enter your current password"
+                        }
+                        newPassword.isBlank() -> {
+                            errorMessage = "Please enter a new password"
+                        }
+                        newPassword.length < 6 -> {
+                            errorMessage = "New password must be at least 6 characters"
+                        }
+                        newPassword != confirmPassword -> {
+                            errorMessage = "Passwords don't match"
+                        }
                         else -> {
+                            // All validations passed, proceed with API call
                             isLoading = true
                             errorMessage = null
                             
-                            // Simulate API call
                             scope.launch {
-                                delay(1500) // Simulate network delay
-                                
-                                // On success
-                                successMessage = "Password updated successfully"
-                                isLoading = false
-                                
-                                // Clear fields
-                                currentPassword = ""
-                                newPassword = ""
-                                confirmPassword = ""
-                                
-                                // Auto navigate back after delay
-                                delay(1500)
-                                navController.popBackStack()
+                                try {
+                                    // Create request body
+                                    val request = ChangePasswordRequest(
+                                        currentPassword = currentPassword,
+                                        newPassword = newPassword
+                                    )
+                                    
+                                    // Make API call
+                                    val response = withContext(Dispatchers.IO) {
+                                        ApiClient.userService.changePassword(request)
+                                    }
+                                    
+                                    if (response.isSuccessful && response.body() != null) {
+                                        // Success
+                                        successMessage = response.body()?.message ?: "Password updated successfully"
+                                        
+                                        // Clear fields
+                                        currentPassword = ""
+                                        newPassword = ""
+                                        confirmPassword = ""
+                                        
+                                        // Auto navigate back after delay
+                                        delay(1500)
+                                        navController.popBackStack()
+                                    } else {
+                                        // API error
+                                        errorMessage = response.errorBody()?.string() ?: "Failed to update password"
+                                    }
+                                } catch (e: Exception) {
+                                    // Network or other error
+                                    errorMessage = "Error: ${e.localizedMessage ?: "Unknown error"}"
+                                } finally {
+                                    isLoading = false
+                                }
                             }
                         }
                     }
