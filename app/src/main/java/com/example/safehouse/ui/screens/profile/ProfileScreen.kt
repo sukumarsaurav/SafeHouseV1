@@ -73,95 +73,119 @@ fun ProfileScreen(navController: NavController) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Profile Header
-        userProfile?.let { profile ->
-            Row(
+    Scaffold(
+        bottomBar = {
+            BottomNavigation(navController = navController)
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                // Profile Image
-                AsyncImage(
-                    model = profile.profile_image_url,
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    error = painterResource(id = R.drawable.ic_profile_placeholder),
-                    fallback = painterResource(id = R.drawable.ic_profile_placeholder)
-                )
-                
-                Spacer(modifier = Modifier.width(16.dp))
-                
-                Column {
-                    Text(
-                        text = profile.full_name,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = profile.email,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (profile.is_verified) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Verified",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                // Profile Header
+                userProfile?.let { profile ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Profile Image
+                        AsyncImage(
+                            model = profile.profile_image_url,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            error = painterResource(id = R.drawable.ic_profile_placeholder),
+                            fallback = painterResource(id = R.drawable.ic_profile_placeholder)
                         )
+                        
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        Column {
+                            Text(
+                                text = profile.full_name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = profile.email,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (profile.is_verified) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Verified",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
+
+                // Settings Options
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Profile Menu Items
+                ProfileMenuItem(
+                    icon = Icons.Default.Edit,
+                    title = "Edit Profile",
+                    onClick = { /* Navigate to edit profile */ }
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.Lock,
+                    title = "Change Password",
+                    onClick = { /* Navigate to change password */ }
+                )
+
+                // Push logout button to bottom
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Logout Button
+                Button(
+                    onClick = { showLogoutDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ExitToApp,
+                        contentDescription = "Logout",
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Logout")
+                }
+            }
+
+            // Loading indicator
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
         }
-
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-        }
-
-        if (errorMessage != null) {
-            Text(
-                text = errorMessage!!,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-
-        // Profile Menu Items
-        ProfileMenuItem(
-            icon = Icons.Default.Edit,
-            title = "Edit Profile",
-            onClick = { /* Navigate to edit profile */ }
-        )
-
-        ProfileMenuItem(
-            icon = Icons.Default.Lock,
-            title = "Change Password",
-            onClick = { /* Navigate to change password */ }
-        )
-
-        ProfileMenuItem(
-            icon = Icons.Default.ExitToApp,
-            title = "Logout",
-            onClick = { showLogoutDialog = true }
-        )
     }
 
-    // Logout Dialog
+    // Logout confirmation dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Logout") },
+            title = { Text("Confirm Logout") },
             text = { Text("Are you sure you want to logout?") },
             confirmButton = {
                 Button(
@@ -172,7 +196,11 @@ fun ProfileScreen(navController: NavController) {
                                 popUpTo(Screen.Home.route) { inclusive = true }
                             }
                         }
-                    }
+                        showLogoutDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
                     Text("Logout")
                 }
