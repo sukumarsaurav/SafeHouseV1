@@ -146,7 +146,7 @@ fun ProfileScreen(navController: NavController) {
                 ProfileMenuItem(
                     icon = Icons.Default.Lock,
                     title = "Change Password",
-                    onClick = { /* Navigate to change password */ }
+                    onClick = { navController.navigate(Screen.ChangePassword.route) }
                 )
 
                 // Push logout button to bottom
