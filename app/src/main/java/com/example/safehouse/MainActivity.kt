@@ -8,12 +8,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.example.safehouse.data.network.ApiClient
 import com.example.safehouse.navigation.SafeHouseNavigation
 import com.example.safehouse.ui.theme.SafeHouseTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize ApiClient with context
+        ApiClient.initialize(applicationContext)
+        
         setContent {
             SafeHouseTheme {
                 Surface(

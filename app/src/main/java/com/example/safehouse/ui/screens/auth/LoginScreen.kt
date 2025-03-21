@@ -10,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -20,10 +20,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.safehouse.R
-import com.example.safehouse.navigation.Screen
 import com.example.safehouse.data.network.ApiClient
 import com.example.safehouse.data.models.LoginRequest
+import com.example.safehouse.data.local.DataStoreHelper
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+// Create a sealed class for navigation routes
+sealed class Screen(val route: String) {
+    object Login : Screen("login")
+    object Home : Screen("home")
+    object Signup : Screen("signup")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +43,8 @@ fun LoginScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val dataStoreHelper = remember { DataStoreHelper(context) }
     
     Column(
         modifier = Modifier
@@ -129,18 +140,31 @@ fun LoginScreen(navController: NavController) {
                         val loginRequest = LoginRequest(phone = formattedPhone, password = password)
                         val response = ApiClient.authService.login(loginRequest)
                         
-                        if (response.isSuccessful && response.body() != null) {
-                            // Store token for future API calls
-                            val authResponse = response.body()!!
-                            // Here you would typically save the token to preferences or a secure storage
-                            
-                            // Navigate to home screen
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
+                        when {
+                            response.isSuccessful -> {
+                                response.body()?.let { authResponse ->
+                                    if (authResponse.success) {
+                                        // Create a coroutine scope for DataStore operations
+                                        withContext(Dispatchers.IO) {
+                                            // Save auth data to DataStore
+                                            dataStoreHelper.saveAuthToken(authResponse.data.token)
+                                            dataStoreHelper.saveUserId(authResponse.data.userId)
+                                            dataStoreHelper.saveRefreshToken(authResponse.data.refreshToken)
+                                        }
+                                        
+                                        // Navigate to home screen
+                                        navController.navigate(Screen.Home.route) {
+                                            popUpTo(Screen.Login.route)
+                                            launchSingleTop = true
+                                        }
+                                    } else {
+                                        errorMessage = authResponse.message ?: "Login failed"
+                                    }
+                                }
                             }
-                        } else {
-                            // Handle error
-                            errorMessage = "Login failed: ${response.errorBody()?.string() ?: "Invalid credentials"}"
+                            else -> {
+                                errorMessage = "Login failed: ${response.errorBody()?.string() ?: "Invalid credentials"}"
+                            }
                         }
                     } catch (e: Exception) {
                         errorMessage = "Network error: ${e.localizedMessage}"
@@ -156,8 +180,8 @@ fun LoginScreen(navController: NavController) {
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
                 Text("Login")
@@ -165,33 +189,9 @@ fun LoginScreen(navController: NavController) {
         }
         
         TextButton(
-            onClick = {
-                // Format phone number with +91 prefix for India
-                val formattedPhone = "+91${phoneNumber.trim()}"
-                navController.navigate(Screen.OtpVerification.route.replace("{phoneNumber}", formattedPhone))
-            },
-            modifier = Modifier.padding(top = 8.dp),
-            enabled = phoneNumber.length == 10 && phoneNumber.all { it.isDigit() }
+            onClick = { navController.navigate(Screen.Signup.route) }
         ) {
-            Text("Login with OTP")
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Don't have an account?",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            
-            TextButton(onClick = { navController.navigate(Screen.Signup.route) }) {
-                Text("Sign Up")
-            }
+            Text("Don't have an account? Sign Up")
         }
     }
 } 

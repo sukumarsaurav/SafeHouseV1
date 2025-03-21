@@ -1,5 +1,6 @@
 package com.example.safehouse.ui.screens.profile
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,27 +17,147 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.safehouse.R
+import com.example.safehouse.data.local.DataStoreHelper
+import com.example.safehouse.data.models.UserProfileData
+import com.example.safehouse.data.models.UserProfileResponse
+import com.example.safehouse.data.network.ApiClient
 import com.example.safehouse.navigation.Screen
 import com.example.safehouse.ui.components.BottomNavigation
+import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Lock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(navController: NavController) {
-    var user by remember {
-        mutableStateOf(
-            UserProfile(
-                name = "John Doe",
-                email = "john.doe@example.com",
-                phone = "+1234567890"
-            )
-        )
-    }
+    var userProfile by remember { mutableStateOf<UserProfileData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    val context = LocalContext.current
+    val dataStoreHelper = remember { DataStoreHelper(context) }
+    val coroutineScope = rememberCoroutineScope()
     
     var showLogoutDialog by remember { mutableStateOf(false) }
     
+    // Fetch user profile when screen loads
+    LaunchedEffect(Unit) {
+        try {
+            val response = ApiClient.userService.getUserProfile()
+            when {
+                response.isSuccessful -> {
+                    response.body()?.let { profileResponse ->
+                        if (profileResponse.success) {
+                            userProfile = profileResponse.data
+                        } else {
+                            errorMessage = "Failed to load profile"
+                        }
+                    }
+                }
+                else -> {
+                    errorMessage = "Failed to load profile: ${response.errorBody()?.string() ?: "Unknown error"}"
+                }
+            }
+        } catch (e: Exception) {
+            errorMessage = "Network error: ${e.localizedMessage ?: "Unknown error"}"
+        } finally {
+            isLoading = false
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Profile Header
+        userProfile?.let { profile ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Profile Image
+                AsyncImage(
+                    model = profile.profile_image_url,
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    error = painterResource(id = R.drawable.ic_profile_placeholder),
+                    fallback = painterResource(id = R.drawable.ic_profile_placeholder)
+                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column {
+                    Text(
+                        text = profile.full_name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = profile.email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (profile.is_verified) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Verified",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+        }
+
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage!!,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        // Profile Menu Items
+        ProfileMenuItem(
+            icon = Icons.Default.Edit,
+            title = "Edit Profile",
+            onClick = { /* Navigate to edit profile */ }
+        )
+
+        ProfileMenuItem(
+            icon = Icons.Default.Lock,
+            title = "Change Password",
+            onClick = { /* Navigate to change password */ }
+        )
+
+        ProfileMenuItem(
+            icon = Icons.Default.ExitToApp,
+            title = "Logout",
+            onClick = { showLogoutDialog = true }
+        )
+    }
+
+    // Logout Dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -45,9 +166,11 @@ fun ProfileScreen(navController: NavController) {
             confirmButton = {
                 Button(
                     onClick = {
-                        // Perform logout
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
+                        coroutineScope.launch {
+                            dataStoreHelper.clearAuthData()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
                         }
                     }
                 ) {
@@ -60,119 +183,6 @@ fun ProfileScreen(navController: NavController) {
                 }
             }
         )
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Profile") }
-            )
-        },
-        bottomBar = {
-            BottomNavigation(navController = navController)
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Profile Header
-            Box(
-                modifier = Modifier
-                    .padding(top = 16.dp, bottom = 24.dp)
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_profile),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(60.dp),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            
-            Text(
-                text = user.name,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Text(
-                text = user.email,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            
-            Text(
-                text = user.phone,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            
-            Spacer(modifier = Modifier.height(36.dp))
-            
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 8.dp)
-                ) {
-                    ProfileMenuItem(
-                        icon = Icons.Default.Refresh,
-                        title = "Reservation History",
-                        onClick = { navController.navigate(Screen.ReservationHistory.route) }
-                    )
-                    
-                    Divider(modifier = Modifier.padding(start = 56.dp))
-                    
-                    ProfileMenuItem(
-                        icon = Icons.Default.Edit,
-                        title = "Edit Profile",
-                        onClick = { /* Edit profile action */ }
-                    )
-                    
-                    Divider(modifier = Modifier.padding(start = 56.dp))
-                    
-                    ProfileMenuItem(
-                        icon = Icons.Default.Lock,
-                        title = "Change Password",
-                        onClick = { navController.navigate(Screen.ChangePassword.route) }
-                    )
-                    
-                    Divider(modifier = Modifier.padding(start = 56.dp))
-                    
-                    ProfileMenuItem(
-                        icon = Icons.Default.Settings,
-                        title = "Preferences",
-                        onClick = { navController.navigate(Screen.Preferences.route) }
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            Button(
-                onClick = { showLogoutDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Logout")
-            }
-        }
     }
 }
 

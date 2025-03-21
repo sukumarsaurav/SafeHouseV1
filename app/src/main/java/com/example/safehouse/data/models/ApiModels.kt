@@ -55,12 +55,19 @@ data class VerifyResponse(
 )
 
 data class AuthResponse(
+    val success: Boolean,
+    val message: String,
+    val data: AuthData
+)
+
+data class AuthData(
+    val userId: String,
     val token: String,
-    val user: User
+    val refreshToken: String
 )
 
 data class User(
-    val id: String,
+    val id: String?,
     val name: String,
     val phone: String,
     val email: String,
@@ -68,8 +75,22 @@ data class User(
 )
 
 data class UserProfileResponse(
-    val user: User,
-    val preferences: UserPreferences
+    val success: Boolean,
+    val data: UserProfileData
+)
+
+data class UserProfileData(
+    val user_id: String,
+    val email: String,
+    val phone: String,
+    val full_name: String,
+    val profile_image_url: String?,
+    val is_verified: Boolean,
+    val is_2fa_enabled: Boolean,
+    val receive_email_notifications: Boolean,
+    val receive_sms_notifications: Boolean,
+    val marketing_opt_in: Boolean,
+    val paymentMethods: List<String> = emptyList()
 )
 
 data class UserPreferences(
