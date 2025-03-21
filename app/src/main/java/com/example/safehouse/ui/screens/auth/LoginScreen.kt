@@ -44,10 +44,10 @@ fun LoginScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ic_logo),
+            painter = painterResource(id = R.drawable.logo),
             contentDescription = "Safe House Logo",
             modifier = Modifier
-                .size(120.dp)
+                .size(150.dp)
                 .padding(bottom = 32.dp)
         )
         
