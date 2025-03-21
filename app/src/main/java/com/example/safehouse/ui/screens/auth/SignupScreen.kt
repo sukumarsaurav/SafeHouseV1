@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -26,6 +27,9 @@ import com.example.safehouse.data.models.SignupRequest
 import com.example.safehouse.data.network.ApiClient
 import com.example.safehouse.navigation.Screen
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.example.safehouse.data.local.DataStoreHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +47,8 @@ fun SignupScreen(navController: NavController) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val dataStoreHelper = remember { DataStoreHelper(context) }
     
     // Function to validate all inputs before submission
     fun validateInputs(): Boolean {
@@ -249,7 +255,13 @@ fun SignupScreen(navController: NavController) {
                                 if (response.isSuccessful && response.body() != null) {
                                     // Store token for future API calls
                                     val authResponse = response.body()!!
-                                    // Here you would typically save the token to preferences or a secure storage
+                                    
+                                    // Save auth data to DataStore
+                                    withContext(Dispatchers.IO) {
+                                        dataStoreHelper.saveAuthToken(authResponse.data.token)
+                                        dataStoreHelper.saveUserId(authResponse.data.userId)
+                                        dataStoreHelper.saveRefreshToken(authResponse.data.refreshToken)
+                                    }
                                     
                                     // Explicitly request OTP after successful signup
                                     val phoneRequest = PhoneRequest(phone = formattedPhone)
