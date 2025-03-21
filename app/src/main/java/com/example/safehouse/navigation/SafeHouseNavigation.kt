@@ -17,6 +17,7 @@ import com.example.safehouse.ui.screens.profile.ProfileScreen
 import com.example.safehouse.ui.screens.profile.ReservationHistoryScreen
 import com.example.safehouse.ui.screens.settings.ChangePasswordScreen
 import com.example.safehouse.ui.screens.settings.PreferencesScreen
+import com.example.safehouse.ui.screens.locker.ActiveLockersScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -30,6 +31,7 @@ sealed class Screen(val route: String) {
     object ReservationHistory : Screen("reservation_history")
     object ChangePassword : Screen("change_password")
     object Preferences : Screen("preferences")
+    object ActiveLockers : Screen("active_lockers")
 }
 
 @Composable
@@ -89,6 +91,10 @@ fun SafeHouseNavigation(navController: NavHostController) {
         
         composable(Screen.Preferences.route) {
             PreferencesScreen(navController = navController)
+        }
+        
+        composable(Screen.ActiveLockers.route) {
+            ActiveLockersScreen(navController = navController)
         }
     }
 } 

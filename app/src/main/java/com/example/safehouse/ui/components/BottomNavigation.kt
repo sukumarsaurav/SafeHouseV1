@@ -15,7 +15,7 @@ import com.example.safehouse.navigation.Screen
 sealed class BottomNavItem(val route: String, val icon: Int, val title: String) {
     object Home : BottomNavItem(Screen.Home.route, R.drawable.ic_home, "Home")
     object Locations : BottomNavItem(Screen.LockerLocations.route, R.drawable.ic_location, "Locations")
-    object Lockers : BottomNavItem(Screen.LockerLocations.route, R.drawable.ic_lockers, "Lockers")
+    object Lockers : BottomNavItem(Screen.ActiveLockers.route, R.drawable.ic_lockers, "Lockers")
     object Profile : BottomNavItem(Screen.Profile.route, R.drawable.ic_profile, "Profile")
 }
 
