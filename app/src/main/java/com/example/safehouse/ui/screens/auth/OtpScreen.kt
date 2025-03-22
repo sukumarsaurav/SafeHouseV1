@@ -27,6 +27,7 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
     var otp by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
     var resendEnabled by remember { mutableStateOf(false) }
     var secondsLeft by remember { mutableStateOf(60) }
     val coroutineScope = rememberCoroutineScope()
@@ -68,49 +69,49 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
             value = otp,
             onValueChange = { 
                 if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                    otp = it
+                    otp = it.uppercase()
                     errorMessage = null
+                    successMessage = null
                 }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             decorationBox = { innerTextField ->
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 32.dp)
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp)
                 ) {
                     repeat(6) { index ->
                         val char = when {
                             index >= otp.length -> ""
                             else -> otp[index].toString()
                         }
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                                .border(
-                                    width = 1.dp,
-                                    color = if (index < otp.length) 
-                                        MaterialTheme.colorScheme.primary 
-                                    else 
-                                        MaterialTheme.colorScheme.outline,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                        ) {
-                            Text(
-                                text = char,
-                                style = MaterialTheme.typography.headlineMedium,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        OtpBox(char = char, isFilled = index < otp.length)
+                        if (index < 5) Spacer(modifier = Modifier.width(8.dp))
                     }
                 }
-                innerTextField()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(0.dp)
+                ) {
+                    innerTextField()
+                }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
         )
         
+        if (successMessage != null) {
+            Text(
+                text = successMessage!!,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
         if (errorMessage != null) {
             Text(
                 text = errorMessage!!,
@@ -130,15 +131,16 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                     
                     isLoading = true
                     errorMessage = null
+                    successMessage = null
                     
                     try {
                         val verifyRequest = VerifyPhoneRequest(phone = phoneNumber, otp = otp)
                         val response = ApiClient.authService.verifyPhone(verifyRequest)
                         
                         if (response.isSuccessful) {
-                            // Navigate to home screen after successful verification
+                            successMessage = "Phone number verified successfully"
+                            delay(1000)
                             navController.navigate(Screen.Home.route) {
-                                // Clear the back stack so user can't go back to auth screens
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }
                         } else {
@@ -215,6 +217,32 @@ fun OtpScreen(phoneNumber: String, navController: NavController) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun OtpBox(char: String, isFilled: Boolean) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(
+                width = 1.dp,
+                color = if (isFilled) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(8.dp)
+            )
+    ) {
+        Text(
+            text = char,
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
