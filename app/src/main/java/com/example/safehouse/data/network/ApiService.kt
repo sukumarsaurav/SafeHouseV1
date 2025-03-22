@@ -46,6 +46,12 @@ interface UserApiService {
     
     @GET("api/user/reservation-history")
     suspend fun getReservationHistory(): Response<ReservationHistoryResponse>
+    
+    @GET("api/user/preferences")
+    suspend fun getUserPreferences(): Response<UserPreferences>
+    
+    @PUT("api/user/preferences")
+    suspend fun updatePreferences(@Body request: UpdatePreferencesRequest): Response<PreferencesResponse>
 }
 
 interface LockerApiService {

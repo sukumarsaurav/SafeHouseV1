@@ -94,13 +94,20 @@ data class UserProfileData(
 )
 
 data class UserPreferences(
-    val notificationsEnabled: Boolean,
-    val defaultDuration: Int,
-    val defaultLockerSize: String
+    val receiveEmailNotifications: Boolean,
+    val receiveSmsNotifications: Boolean,
+    val marketingOptIn: Boolean
+)
+
+data class UpdatePreferencesRequest(
+    val receiveEmailNotifications: Boolean,
+    val receiveSmsNotifications: Boolean,
+    val marketingOptIn: Boolean
 )
 
 data class PreferencesResponse(
-    val preferences: UserPreferences
+    val success: Boolean,
+    val message: String
 )
 
 data class MessageResponse(

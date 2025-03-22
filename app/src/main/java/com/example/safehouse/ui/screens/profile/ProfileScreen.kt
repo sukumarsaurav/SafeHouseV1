@@ -34,6 +34,14 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Switch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import com.example.safehouse.data.models.UserPreferences
+import com.example.safehouse.data.models.UpdatePreferencesRequest
+import com.example.safehouse.data.models.PreferencesResponse
+import retrofit2.Response
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,35 +49,25 @@ fun ProfileScreen(navController: NavController) {
     var userProfile by remember { mutableStateOf<UserProfileData?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showSuccessMessage by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val dataStoreHelper = remember { DataStoreHelper(context) }
     val coroutineScope = rememberCoroutineScope()
-    
     var showLogoutDialog by remember { mutableStateOf(false) }
-    
+
     // Fetch user profile when screen loads
     LaunchedEffect(Unit) {
         try {
             val response = ApiClient.userService.getUserProfile()
-            when {
-                response.isSuccessful -> {
-                    response.body()?.let { profileResponse ->
-                        if (profileResponse.success) {
-                            userProfile = profileResponse.data
-                        } else {
-                            errorMessage = "Failed to load profile"
-                        }
-                    }
-                }
-                else -> {
-                    errorMessage = "Failed to load profile: ${response.errorBody()?.string() ?: "Unknown error"}"
-                }
+            if (response.isSuccessful && response.body() != null) {
+                userProfile = response.body()?.data
+                isLoading = false
+            } else {
+                errorMessage = "Failed to load profile"
             }
         } catch (e: Exception) {
-            errorMessage = "Network error: ${e.localizedMessage ?: "Unknown error"}"
-        } finally {
-            isLoading = false
+            errorMessage = "Error: ${e.localizedMessage}"
         }
     }
 
@@ -148,6 +146,104 @@ fun ProfileScreen(navController: NavController) {
                     title = "Change Password",
                     onClick = { navController.navigate(Screen.ChangePassword.route) }
                 )
+
+                // Preferences Section
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = "Notification Preferences",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        userProfile?.let { profile ->
+                            PreferenceToggle(
+                                title = "Email Notifications",
+                                checked = profile.receive_email_notifications,
+                                onCheckedChange = { newValue ->
+                                    coroutineScope.launch {
+                                        updateUserPreferences(
+                                            profile = profile,
+                                            emailNotifications = newValue,
+                                            smsNotifications = profile.receive_sms_notifications,
+                                            marketingOptIn = profile.marketing_opt_in
+                                        ) { success ->
+                                            showSuccessMessage = success
+                                            if (success) {
+                                                userProfile = profile.copy(receive_email_notifications = newValue)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                            
+                            Divider(modifier = Modifier.padding(vertical = 8.dp))
+                            
+                            PreferenceToggle(
+                                title = "SMS Notifications",
+                                checked = profile.receive_sms_notifications,
+                                onCheckedChange = { newValue ->
+                                    coroutineScope.launch {
+                                        updateUserPreferences(
+                                            profile = profile,
+                                            emailNotifications = profile.receive_email_notifications,
+                                            smsNotifications = newValue,
+                                            marketingOptIn = profile.marketing_opt_in
+                                        ) { success ->
+                                            showSuccessMessage = success
+                                            if (success) {
+                                                userProfile = profile.copy(receive_sms_notifications = newValue)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                            
+                            Divider(modifier = Modifier.padding(vertical = 8.dp))
+                            
+                            PreferenceToggle(
+                                title = "Marketing Communications",
+                                checked = profile.marketing_opt_in,
+                                onCheckedChange = { newValue ->
+                                    coroutineScope.launch {
+                                        updateUserPreferences(
+                                            profile = profile,
+                                            emailNotifications = profile.receive_email_notifications,
+                                            smsNotifications = profile.receive_sms_notifications,
+                                            marketingOptIn = newValue
+                                        ) { success ->
+                                            showSuccessMessage = success
+                                            if (success) {
+                                                userProfile = profile.copy(marketing_opt_in = newValue)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                if (showSuccessMessage) {
+                    LaunchedEffect(Unit) {
+                        delay(2000)
+                        showSuccessMessage = false
+                    }
+                    Snackbar(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text("Preferences updated successfully")
+                    }
+                }
 
                 // Push logout button to bottom
                 Spacer(modifier = Modifier.weight(1f))
@@ -248,6 +344,56 @@ fun ProfileMenuItem(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
+    }
+}
+
+@Composable
+private fun PreferenceToggle(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+// Update the updatePreferences function
+private suspend fun updateUserPreferences(
+    profile: UserProfileData,
+    emailNotifications: Boolean,
+    smsNotifications: Boolean,
+    marketingOptIn: Boolean,
+    onComplete: (Boolean) -> Unit
+) {
+    try {
+        val request = UpdatePreferencesRequest(
+            receiveEmailNotifications = emailNotifications,
+            receiveSmsNotifications = smsNotifications,
+            marketingOptIn = marketingOptIn
+        )
+        
+        val response = ApiClient.userService.updatePreferences(request)
+        if (response.isSuccessful) {
+            onComplete(true)
+        } else {
+            onComplete(false)
+        }
+    } catch (e: Exception) {
+        onComplete(false)
     }
 }
 
